@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BTC Paper Trading Bot</title>
+
+<style>
+body{
+    background:#111;
+    color:#fff;
+    font-family:Arial,sans-serif;
+    padding:20px;
+}
+.card{
+    background:#1c1c1c;
+    padding:15px;
+    border-radius:10px;
+    margin-bottom:15px;
+}
+h1{
+    color:#00ff88;
+}
+.green{color:#00ff88;}
+.red{color:#ff5555;}
+.log{
+    height:300px;
+    overflow:auto;
+    background:#000;
+    padding:10px;
+    border-radius:8px;
+    font-size:14px;
+}
+</style>
+</head>
+<body>
+
+<h1>🤖 BTC Paper Trading Bot</h1>
+
+<div class="card">
+    <p>Harga BTC: <span id="btcPrice">Loading...</span></p>
+    <p>Saldo Virtual: Rp <span id="balance">100000</span></p>
+    <p>Posisi: <span id="position">Tidak Ada</span></p>
+    <p>Status: <span id="status">Menunggu Data...</span></p>
+</div>
+
+<div class="card">
+    <h3>Log Trading</h3>
+    <div id="log" class="log"></div>
+</div>
+
+<script>
+
+let balance = 100000;
+let position = null;
+let entryPrice = 0;
+let stopLoss = 0;
+let takeProfit = 0;
+
+let previousPrice = null;
+
+function addLog(text){
+    const log = document.getElementById("log");
+    log.innerHTML =
+        "[" + new Date().toLocaleTimeString() + "] "
+        + text + "<br>" + log.innerHTML;
+}
+
+async function getBTC(){
+
+    try{
+
+        const res = await fetch(
+          "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=idr"
+        );
+
+        const data = await res.json();
+
+        const price = data.bitcoin.idr;
+
+        document.getElementById("btcPrice").innerText =
+            "Rp " + price.toLocaleString();
+
+        if(previousPrice){
+
+            let change =
+                ((price - previousPrice)/previousPrice)*100;
+
+            // BUY SIGNAL
+            if(change > 0.3 && position === null){
+
+                position = "BUY";
+                entryPrice = price;
+
+                stopLoss = price * 0.98;
+                takeProfit = price * 1.04;
+
+                document.getElementById("position").innerText =
+                    "BUY";
+
+                document.getElementById("status").innerHTML =
+                    "<span class='green'>BUY SIGNAL</span>";
+
+                addLog(
+                  "BUY @ Rp "
+                  + price.toLocaleString()
+                );
+
+            }
+
+            // CEK POSISI
+            if(position === "BUY"){
+
+                if(price >= takeProfit){
+
+                    let profit = balance * 0.04;
+
+                    balance += profit;
+
+                    addLog(
+                     "<span class='green'>TP HIT +Rp "
+                     + Math.round(profit)
+                     + "</span>"
+                    );
+
+                    position = null;
+
+                }
+
+                else if(price <= stopLoss){
+
+                    let loss = balance * 0.02;
+
+                    balance -= loss;
+
+                    addLog(
+                     "<span class='red'>SL HIT -Rp "
+                     + Math.round(loss)
+                     + "</span>"
+                    );
+
+                    position = null;
+
+                }
+
+            }
+
+        }
+
+        previousPrice = price;
+
+        document.getElementById("balance")
+            .innerText =
+            Math.round(balance).toLocaleString();
+
+        if(position === null){
+            document.getElementById("position")
+                .innerText = "Tidak Ada";
+        }
+
+    }catch(err){
+
+        addLog(
+          "<span class='red'>Gagal ambil data harga</span>"
+        );
+
+    }
+
+}
+
+getBTC();
+setInterval(getBTC,30000);
+
+</script>
+
+</body>
+</html>
