@@ -2,174 +2,181 @@
 <html lang="id">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <title>BTC Paper Trading Bot</title>
 
 <style>
 body{
-    background:#111;
-    color:#fff;
-    font-family:Arial,sans-serif;
-    padding:20px;
+background:#0d1117;
+color:white;
+font-family:Arial;
+padding:20px;
 }
 .card{
-    background:#1c1c1c;
-    padding:15px;
-    border-radius:10px;
-    margin-bottom:15px;
-}
-h1{
-    color:#00ff88;
+background:#161b22;
+padding:15px;
+margin-bottom:10px;
+border-radius:10px;
 }
 .green{color:#00ff88;}
 .red{color:#ff5555;}
-.log{
-    height:300px;
-    overflow:auto;
-    background:#000;
-    padding:10px;
-    border-radius:8px;
-    font-size:14px;
+#log{
+height:300px;
+overflow:auto;
+background:black;
+padding:10px;
+border-radius:10px;
+font-size:13px;
+}
+button{
+padding:10px;
+border:none;
+border-radius:8px;
+cursor:pointer;
 }
 </style>
 </head>
 <body>
 
-<h1>🤖 BTC Paper Trading Bot</h1>
+<h2>🤖 Bitcoin Paper Trading Bot</h2>
 
 <div class="card">
-    <p>Harga BTC: <span id="btcPrice">Loading...</span></p>
-    <p>Saldo Virtual: Rp <span id="balance">100000</span></p>
-    <p>Posisi: <span id="position">Tidak Ada</span></p>
-    <p>Status: <span id="status">Menunggu Data...</span></p>
+Harga BTCUSDT:
+<h1 id="price">Loading...</h1>
 </div>
 
 <div class="card">
-    <h3>Log Trading</h3>
-    <div id="log" class="log"></div>
+Saldo Virtual:
+<h2 id="balance">100000</h2>
+</div>
+
+<div class="card">
+Posisi:
+<h2 id="position">NONE</h2>
+</div>
+
+<div class="card">
+Status:
+<h3 id="status">Starting...</h3>
+</div>
+
+<div class="card">
+<h3>Log Trading</h3>
+<div id="log"></div>
 </div>
 
 <script>
 
-let balance = 100000;
-let position = null;
-let entryPrice = 0;
-let stopLoss = 0;
-let takeProfit = 0;
+let balance=100000;
+let position=null;
+let entry=0;
+let sl=0;
+let tp=0;
 
-let previousPrice = null;
+let lastPrice=null;
 
-function addLog(text){
-    const log = document.getElementById("log");
-    log.innerHTML =
-        "[" + new Date().toLocaleTimeString() + "] "
-        + text + "<br>" + log.innerHTML;
+function log(msg){
+document.getElementById("log").innerHTML=
+new Date().toLocaleTimeString()+" - "+msg+"<br>"+
+document.getElementById("log").innerHTML;
 }
 
-async function getBTC(){
+async function getPrice(){
 
-    try{
+try{
 
-        const res = await fetch(
-          "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=idr"
-        );
+const res=await fetch(
+"https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT"
+);
 
-        const data = await res.json();
+const data=await res.json();
 
-        const price = data.bitcoin.idr;
+const price=parseFloat(data.price);
 
-        document.getElementById("btcPrice").innerText =
-            "Rp " + price.toLocaleString();
+document.getElementById("price").innerText=
+"$"+price.toLocaleString();
 
-        if(previousPrice){
+document.getElementById("status").innerHTML=
+"<span class='green'>ONLINE</span>";
 
-            let change =
-                ((price - previousPrice)/previousPrice)*100;
+if(lastPrice){
 
-            // BUY SIGNAL
-            if(change > 0.3 && position === null){
+let change=((price-lastPrice)/lastPrice)*100;
 
-                position = "BUY";
-                entryPrice = price;
+if(position===null){
 
-                stopLoss = price * 0.98;
-                takeProfit = price * 1.04;
+if(change>0.10){
 
-                document.getElementById("position").innerText =
-                    "BUY";
+position="BUY";
+entry=price;
+sl=price*0.98;
+tp=price*1.04;
 
-                document.getElementById("status").innerHTML =
-                    "<span class='green'>BUY SIGNAL</span>";
+document.getElementById("position").innerText="BUY";
 
-                addLog(
-                  "BUY @ Rp "
-                  + price.toLocaleString()
-                );
-
-            }
-
-            // CEK POSISI
-            if(position === "BUY"){
-
-                if(price >= takeProfit){
-
-                    let profit = balance * 0.04;
-
-                    balance += profit;
-
-                    addLog(
-                     "<span class='green'>TP HIT +Rp "
-                     + Math.round(profit)
-                     + "</span>"
-                    );
-
-                    position = null;
-
-                }
-
-                else if(price <= stopLoss){
-
-                    let loss = balance * 0.02;
-
-                    balance -= loss;
-
-                    addLog(
-                     "<span class='red'>SL HIT -Rp "
-                     + Math.round(loss)
-                     + "</span>"
-                    );
-
-                    position = null;
-
-                }
-
-            }
-
-        }
-
-        previousPrice = price;
-
-        document.getElementById("balance")
-            .innerText =
-            Math.round(balance).toLocaleString();
-
-        if(position === null){
-            document.getElementById("position")
-                .innerText = "Tidak Ada";
-        }
-
-    }catch(err){
-
-        addLog(
-          "<span class='red'>Gagal ambil data harga</span>"
-        );
-
-    }
+log(
+"<span class='green'>BUY @ "+price+"</span>"
+);
 
 }
 
-getBTC();
-setInterval(getBTC,30000);
+}
+
+if(position==="BUY"){
+
+if(price>=tp){
+
+let profit=balance*0.04;
+
+balance+=profit;
+
+document.getElementById("balance").innerText=
+Math.round(balance);
+
+log(
+"<span class='green'>TAKE PROFIT +"+Math.round(profit)+"</span>"
+);
+
+position=null;
+
+}
+
+else if(price<=sl){
+
+let loss=balance*0.02;
+
+balance-=loss;
+
+document.getElementById("balance").innerText=
+Math.round(balance);
+
+log(
+"<span class='red'>STOP LOSS -"+Math.round(loss)+"</span>"
+);
+
+position=null;
+
+}
+
+}
+
+}
+
+lastPrice=price;
+
+}catch(e){
+
+document.getElementById("status").innerHTML=
+"<span class='red'>API ERROR</span>";
+
+console.log(e);
+
+}
+
+}
+
+getPrice();
+setInterval(getPrice,10000);
 
 </script>
 
